@@ -3,6 +3,6 @@
 *.root
 trashbin/
 
-.png
-.pdf
-.pgf
+*.png
+*.pdf
+*.pgf
