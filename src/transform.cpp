@@ -1,8 +1,7 @@
+#include "../include/constants.hpp"
+
+
 // Contains all main function relative to our research that apply change to dataset
-
-
-const int GAMMA_PDG = 22;
-const double VALIDE_ENERGY = 4.44;
 
 // Require:
 //  [ambedf (RDataFrame)]:: Initial dataframe with `T1.pdg` && `T1.energy` required
@@ -13,7 +12,7 @@ const double VALIDE_ENERGY = 4.44;
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void> filterT1Events (ROOT::RDataFrame ambedf, double absTol) {
     // Event filter expression
     std::ostringstream expr2;
-    expr2 << "(T1.pdg == " << GAMMA_PDG << ")  && (ROOT::VecOps::abs(T1.energy - " << VALIDE_ENERGY << ") <" << absTol << ")";
+    expr2 << "(T1.pdg == " << GAMMA_PDG << ")  && (ROOT::VecOps::abs(T1.energy - " << GAMMA_ENERGY << ") <" << absTol << ")";
     std::string filter_formula = expr2.str();
     auto dfT5view = ambedf.Define("gamma_event", filter_formula);
     return dfT5view.Define("is_event", "ROOT::VecOps::Sum(gamma_event) > 0");
