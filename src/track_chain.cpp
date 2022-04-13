@@ -16,6 +16,13 @@ double walker(
     int N
 );
 
+int findPrimaryCE(
+    ROOT::RVec<int>* pdg,
+    ROOT::RVec<int>* parentid,
+    ROOT::RVec<double>* initialEkin,
+    int gammaId,
+    int N
+    );
 
 double track_entry(
     //T9
@@ -25,7 +32,8 @@ double track_entry(
     ROOT::RVec<double>* initialEkin,
     // T5
     ROOT::RVec<int>* trackidT5,
-    ROOT::RVec<double>* edep_pvt
+    ROOT::RVec<double>* edep_pvt,
+    bool onlyFirstCompton=false
 ) {
     int N = std::min({
         pdg->size(),
@@ -41,7 +49,17 @@ double track_entry(
             (parentid->at(i) == 0) &&  // Should not have parents
             (std::find(validId.begin(), validId.end(), trackid->at(i)) != validId.end())
         ) {
-            return walker(trackid, parentid, trackidT5, edep_pvt, i, N);
+            if (onlyFirstCompton) {
+                int indexCE = findPrimaryCE(pdg, parentid, initialEkin, trackid->at(i), N);
+                if (indexCE >= 0) {
+                    // Bactracking starting at the compton edge electron
+                    return walker(trackid, parentid, trackidT5, edep_pvt, indexCE, N);
+                }
+                return 0.; // No child elecron, no CE energy
+            } else {
+                // Full gamma energy chain
+                return walker(trackid, parentid, trackidT5, edep_pvt, i, N);
+            }
         }
     }
     return 0.;
@@ -101,4 +119,30 @@ double walker(
         // and energy of all child in tree
         return etot;
     }
+}
+
+
+// For given gamma trackid (gammaId), search for most energetic electron child
+// return the CE electron index in T9 arrays
+// If returned index is -1 => no electron child case
+int findPrimaryCE(
+    ROOT::RVec<int>* pdg,
+    ROOT::RVec<int>* parentid,
+    ROOT::RVec<double>* initialEkin,
+    int gammaId,
+    int N
+) {
+    int indexCE {-1};
+    double energyCE {0.};
+    for (int i = 0; i < N; i++) {
+        // Looking for primary electron
+        if (parentid->at(i) == gammaId && pdg->at(i) == 11) {
+            // Maximum energy check could be done in the first if but keep it clear
+            if (energyCE < initialEkin->at(i)) {
+                energyCE = initialEkin->at(i);
+                indexCE = i;
+            }
+        }
+    }
+    return indexCE;
 }
