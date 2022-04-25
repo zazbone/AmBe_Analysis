@@ -13,3 +13,4 @@ G__AmBe*
 *.cmake
 Makefile
 CMakeFiles
+docs/*
