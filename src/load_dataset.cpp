@@ -1,9 +1,4 @@
-typedef struct {
-    ROOT::RDataFrame df;
-    std::shared_ptr<TTree> tree;
-    std::shared_ptr<TFile> file;
-} DataSetHolder;
-
+#include "../include/load_dataset.hpp"
 // Generic function to load GEANT4 sim dataset
 // Return tree and file for lifetime purpose
 // Or may be to use tree or extend it

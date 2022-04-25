@@ -1,11 +1,13 @@
-void savePlot(TObject * plt, char const* fileName) {
-    auto pathBuffer = std::string("plots") + std::string(fileName);
-    std::string pathPgf("plots/pgf");
-    std::string pathPng("plots/png");
+#include "TObject.h"
+#include "TCanvas.h"
+#include <string>
+
+
+void savePlot(TObject const* plt, std::string& dir, std::string& fileName) {
     TCanvas c;
     plt->DrawClone();
     c.Update();
-    c.Print((std::string("plots/pdf/") + std::string(fileName) + std::string(".pdf")).c_str());
-    c.Print((std::string("plots/pgf/") + std::string(fileName) + std::string(".pgf")).c_str());
-    c.Print((std::string("plots/png/") + std::string(fileName) + std::string(".png")).c_str());
+    c.Print((dir + std::string{"/pdf/"} + fileName + std::string{".pdf"}).c_str());
+    c.Print((dir + std::string{"/pgf/"} + fileName + std::string{".pgf"}).c_str());
+    c.Print((dir + std::string{"/png/"} + fileName + std::string{".png"}).c_str());
 }

@@ -7,5 +7,9 @@ trashbin/
 *.pdf
 *.pgf
 
-cppforever
+lib*
 *.txt
+G__AmBe*
+*.cmake
+Makefile
+CMakeFiles
