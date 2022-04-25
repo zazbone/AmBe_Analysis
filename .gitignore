@@ -14,3 +14,4 @@ G__AmBe*
 Makefile
 CMakeFiles
 docs/*
+*.dot
