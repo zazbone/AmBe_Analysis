@@ -21,6 +21,7 @@ file(GLOB AmBe_HEADERS include/*.hpp)
 add_library(AmBe SHARED ${AmBe_SOURCES} ${AmBe_HEADERS} G__AmBe.cxx)
 target_include_directories(AmBe PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(AmBe PUBLIC ROOT::Core)
+target_compile_options(AmBe PRIVATE -Werror -Wall -Wextra)
 
 ## Alternative to add the dictionary to an existing target:
 # add_library(DictExample SHARED DictExample.cxx DictExample.h)
