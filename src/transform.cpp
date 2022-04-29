@@ -42,12 +42,14 @@ ROOT::RDF::RNode createT5Mask(ROOT::RDF::RNode df) {
 }
 
 // Given volid and edep_pvt should have been already masked
-std::tuple<ROOT::RVec<int>, ROOT::RVec<double>> volidEpvtTot(ROOT::RVec<int> const& volid, ROOT::RVec<double> const& edep_pvt) {
+std::tuple<ROOT::RVec<int>, ROOT::RVec<double>> volidEpvtTot(
+    ROOT::RVec<int> const& volid, ROOT::RVec<double> const& edep_pvt
+) {
     ROOT::RVec<int> totalVolid {};
     ROOT::RVec<double> totalEpvt {};
     const int N = volid.size();
     for (int i = 0; i < N; i++) {
-        int j = 0;
+        unsigned long j = 0;
         for (; j < totalVolid.size(); j++) {
             if (totalVolid[j] == volid[i]) {
                 totalEpvt[j] += edep_pvt[i];

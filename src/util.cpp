@@ -32,7 +32,7 @@ ROOT::RVec<int> getIndex(ROOT::RVec<int> const& vec1, ROOT::RVec<int> const& vec
     ROOT::RVec<int> out {};
     std::set<int> memory {};
     for (int el: vec1) {
-        for (int index = 0; index < vec2.size(); index++) {
+        for (unsigned long index = 0; index < vec2.size(); index++) {
             if (el == vec2.at(index) && (memory.find(index) == memory.end())) {
                 out.push_back(index);
                 memory.emplace(index);
@@ -47,7 +47,11 @@ int neightborDistCalc(int dx, int dy, int dz) {
     return std::max({std::abs(dx), std::abs(dy), std::abs(dz)});
 }
 
-int indexMax(ROOT::RVec<int> const& vec) {
+
+// Return the index of the maximal value in the given vec
+// Empty vec are supported, the function will return -1 insted of a valid index
+template<typename T>
+int indexMax(ROOT::RVec<T> const& vec) {
     const int N = vec.size();
     if (!N) {return -1;}
     int maxValue = vec[0];
@@ -60,6 +64,8 @@ int indexMax(ROOT::RVec<int> const& vec) {
     }
     return index;
 }
+template int indexMax<int>(ROOT::RVec<int> const& vec);
+template int indexMax<double>(ROOT::RVec<double> const& vec);
 
 int getCubeX(long m_volID)
 {
@@ -85,6 +91,7 @@ int calcVolid(int x, int y, int z) {
 
 
 int centerOfMass(ROOT::RVec<int> const& volid, ROOT::RVec<double> const& edep_pvt) {
+    if (volid.size() == 0) {return -1;}
     ROOT::RVec<int> X = ROOT::VecOps::Map(volid, getCubeX);
     ROOT::RVec<int> Y = ROOT::VecOps::Map(volid, getCubeY);
     ROOT::RVec<int> Z = ROOT::VecOps::Map(volid, getCubeZ);

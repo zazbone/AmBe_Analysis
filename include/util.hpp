@@ -15,7 +15,8 @@ int neightborDistCalc(int dx, int dy, int dz);
 template<typename T>
 bool contain(ROOT::RVec<T> const& sequence, T const& value);
 
-int indexMax(ROOT::RVec<int> const& vec);
+template<typename T>
+int indexMax(ROOT::RVec<T> const& vec);
 
 int getCubeX(long m_volID);
 
