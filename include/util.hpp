@@ -29,3 +29,5 @@ int centerOfMass(ROOT::RVec<int> const& volid, ROOT::RVec<double> const& weight)
 int calcVolid(int x, int y, int z);
 
 double weightedMean(ROOT::RVec<int> const& value, ROOT::RVec<double> const& weight);
+
+ROOT::RVec<bool> approxEq(ROOT::RVec<double> v, double value, double eps);

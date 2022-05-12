@@ -106,3 +106,7 @@ double weightedMean(ROOT::RVec<int> const& value, ROOT::RVec<double> const& weig
     double iW = 1 /  ROOT::VecOps::Sum(weight);
     return ROOT::VecOps::Sum(value * weight) * iW;
 }
+
+ROOT::RVec<bool> approxEq(ROOT::RVec<double> v, double value, double eps) {
+    return ROOT::VecOps::abs(v - value) < eps;
+}

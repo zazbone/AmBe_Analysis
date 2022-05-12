@@ -1,6 +1,7 @@
 #include "../include/constants.hpp"
 #include "../include/track_chain.hpp"
 #include "../include/util.hpp"
+#include "../include/column.hpp"
 
 
 // Contains all main function relative to our research that apply change to dataset
@@ -16,9 +17,18 @@ ROOT::RDF::RNode filterT1Events (ROOT::RDF::RNode ambedf, double absTol) {
     std::ostringstream expr2;
     expr2 << "(T1.pdg == " << GAMMA_PDG << ")  && (ROOT::VecOps::abs(T1.energy - " << GAMMA_ENERGY << ") <" << absTol << ")";
     std::string filter_formula = expr2.str();
-    auto dfT5view = ambedf.Define("gamma_event", filter_formula);
-    return dfT5view.Define("is_event", "ROOT::VecOps::Sum(gamma_event) > 0");
+    auto dfT5view = ambedf.Define("initial_gamma", filter_formula);
+    return dfT5view.Define("is_event", "ROOT::VecOps::Sum(initial_gamma) > 0");
 }
+// Find why this version does not work
+/*
+-    // Event filter expression
+-    std::ostringstream expr2;
+-    expr2 << "(T1.pdg == " << GAMMA_PDG << ")  && (ROOT::VecOps::abs(T1.energy - " << GAMMA_ENERGY << ") <" << absTol << ")";
+-    std::string filter_formula = expr2.str();
+-    auto dfT5view = ambedf.Define("gamma_event", filter_formula);
+-    return dfT5view.Define("is_event", "ROOT::VecOps::Sum(gamma_event) > 0");
+*/
 
 
 ROOT::RVec<int> _fromMaskT9(
@@ -110,4 +120,39 @@ ROOT::RVec<int> zDist(int origine, ROOT::RVec<int> const& points) {
     ROOT::RVec<int> Z = ROOT::VecOps::Map(points, getCubeZ);
     ROOT::RVec<int> dz = Z - z;
     return dz;
+}
+
+
+ROOT::RDF::RNode sumContribution(
+    ROOT::RDF::RNode & df,
+    const char* name,
+    const char* selector,
+    const char* energy_column,
+    const char* volid_column
+) {
+    std::ostringstream volidColStream {};
+    volidColStream << "volid" << name;
+    std::string volidCol = volidColStream.str();
+    std::ostringstream epvtColStream {};
+    epvtColStream << "Epvt" << name;
+    std::string epvtCol = epvtColStream.str();
+    std::ostringstream exprStream {};
+    exprStream<< "volidEpvtTot(" << volid_column << "[" << selector << "]" << "," << energy_column << "[" << selector << "]" << ")";
+    std::string expr = exprStream.str();
+    ROOT::RDF::RNode out = df.Define(volidCol, expr);
+    using CubeTuple = std::tuple<ROOT::RVec<int>, ROOT::RVecD>;
+    out = out.Define(epvtCol, [](CubeTuple const& volid){return std::get<1>(volid);}, {volidCol});
+    out = out.Redefine(volidCol, [](CubeTuple const& volid){return std::get<0>(volid);}, {volidCol});
+    return out;
+}
+
+
+// Require: maskT5, T1 event, T9. tree, volidCE, EpvtCE, volidALL, EpvtAll
+ROOT::RDF::RNode selectedCEEvents(ROOT::RDF::RNode & df) {
+    ROOT::RDF::RNode out = df.Filter("ROOT::VecOps::Any(T9.initialEkin[chainMaskT9 == maskCE_ELECT] > 4)", "CE produced with Ekin > 4");
+    out = out.Filter("(EpvtCE[EpvtCE > 0.1]).size() == 1", "1 Compton edge cube");
+    out = out.Define("CECubeVolid", "volidCE[EpvtCE > 0.1][0]");
+    out = out.Define("CECubeCEEpvt", "ROOT::VecOps::Sum(EpvtCE[EpvtCE > 0.1])");
+    out = out.Filter("auto mask = EpvtCE > 0.1; auto cubeVolid = volid == volidCE[mask].at(0) ; return EpvtCE[mask][0] / E_quenched[cubeVolid][0] > 0.95;", "Signal purity above 95%");
+    return out;
 }

@@ -1,4 +1,6 @@
 #include "../include/load_dataset.hpp"
+
+
 // Generic function to load GEANT4 sim dataset
 // Return tree and file for lifetime purpose
 // Or may be to use tree or extend it
@@ -9,12 +11,22 @@ DataSetHolder ambeDataSet (char const* path) {
     // Add other friend manualy to tree field of DataSetHolder and create a new df
     tree->AddFriend("T1", path);
     tree->AddFriend("T9", path);
-    ROOT::RDataFrame df {
-        *tree,
-        {"T1.pdg", "T1.energy",
-        "pdg", "trackid", "parentid", "volid",
-        "T9.pdg", "T9.trackid", "T9.parentid", "T9.parentPDG"} // TODO: find why collumn selection does not work
-        };
-    DataSetHolder out {df, tree, ambe3file};
+    ROOT::RDF::RNode df = ROOT::RDataFrame {*tree};
+    DataSetHolder out {df, {tree}, {ambe3file}};
     return out;
+}
+
+// Load T5 tree from Geant4 dataset with S2 reconstruction data
+// From Safran2 we extract CCubeE from ES and nsESClusCoins
+// S2 does not report all G4 row, missing rows will be filled by empty RVec
+DataSetHolder withS2(char const* G4path, char const* S2path) {
+    std::shared_ptr<TFile> G4file{TFile::Open(G4path)};
+    std::shared_ptr<TTree> G4tree{G4file->Get<TTree>("T5")};
+    std::shared_ptr<TFile> S2file{TFile::Open(S2path)};
+    std::shared_ptr<TTree> S2tree{S2file->Get<TTree>("DefaultReconstruction/ES")};
+    S2tree->BuildIndex("cycleNum");
+    G4tree->SetAlias("cycleNum", "LocalEntry$");
+    G4tree->AddFriend(S2tree.get());
+    ROOT::RDF::RNode df = ROOT::RDataFrame {*G4tree};
+    return DataSetHolder {df, {G4tree, S2tree}, {G4file, S2file}};
 }
