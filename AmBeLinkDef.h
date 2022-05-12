@@ -8,6 +8,7 @@
 
 #pragma link C++ defined_in "include/AmBe.hpp";
 #pragma link C++ defined_in "include/constants.hpp";
+#pragma link C++ defined_in "include/create_columns.hpp";
 #pragma link C++ defined_in "include/load_dataset.hpp";
 #pragma link C++ defined_in "include/track_chain.hpp";
 #pragma link C++ defined_in "include/transform.hpp";
