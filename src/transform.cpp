@@ -20,15 +20,11 @@ ROOT::RDF::RNode filterT1Events (ROOT::RDF::RNode ambedf, double absTol) {
     auto dfT5view = ambedf.Define("initial_gamma", filter_formula);
     return dfT5view.Define("is_event", "ROOT::VecOps::Sum(initial_gamma) > 0");
 }
-// Find why this version does not work
-/*
--    // Event filter expression
--    std::ostringstream expr2;
--    expr2 << "(T1.pdg == " << GAMMA_PDG << ")  && (ROOT::VecOps::abs(T1.energy - " << GAMMA_ENERGY << ") <" << absTol << ")";
--    std::string filter_formula = expr2.str();
--    auto dfT5view = ambedf.Define("gamma_event", filter_formula);
--    return dfT5view.Define("is_event", "ROOT::VecOps::Sum(gamma_event) > 0");
-*/
+
+
+ROOT::RDF::RNode createT5Mask(ROOT::RDF::RNode df) {
+    return df.Define("chainMaskT5", "_fromMaskT9(T9.trackid, chainMaskT9, trackid)");
+}
 
 
 ROOT::RVec<int> _fromMaskT9(
@@ -46,10 +42,6 @@ ROOT::RVec<int> _fromMaskT9(
     return maskT5;
 }
 
-
-ROOT::RDF::RNode createT5Mask(ROOT::RDF::RNode df) {
-    return df.Define("chainMaskT5", "_fromMaskT9(T9.trackid, chainMaskT9, trackid)");
-}
 
 // Given volid and edep_pvt should have been already masked
 std::tuple<ROOT::RVec<int>, ROOT::RVec<double>> volidEpvtTot(

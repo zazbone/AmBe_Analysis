@@ -1,7 +1,9 @@
 #include "../include/create_columns.hpp"
 
 
-// TODO: Define column name as constants and document it
+// Create a new root file with all neccessary practical column for the analysis
+// [G4path (char*)]:: the path to a source G4 ambe callibration 
+// [outputfile (char*)]:: the name and path of the output file
 void EQuenched(const char* G4Path, const char* outputFile) {
     using VecD = ROOT::RVec<double> const&;
     using VecI = ROOT::RVec<int> const&;
@@ -85,7 +87,7 @@ void EQuenched(const char* G4Path, const char* outputFile) {
     df = df.Redefine("volidNeutron", [](VectID volid){return std::get<0>(volid);}, {"volidNeutron"});
 
     df = df.Define("CEReachPvt",
-        [](bool T1, VecI mask){return T1 && ROOT::VecOps::Any(mask == maskGAMMA) && ROOT::VecOps::Any(mask == maskCE_ELECT);},
+        [](bool T1, VecI mask){return T1 && ROOT::VecOps::Any(mask == maskGAMMA || mask == maskG_CHILD) && ROOT::VecOps::Any(mask == maskCE_ELECT || mask == maskCE_CHILD);},
         {"is_event", "chainMaskT5"}
     );
     

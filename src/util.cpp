@@ -18,6 +18,11 @@ ROOT::RVec<bool> in(ROOT::RVec<int> const& tid, ROOT::RVec<int> const& trackidT5
     return out;
 }
 
+
+
+// Check if a Root vector contain a given value
+// You may should use ROOT::VecOps::Any(vec == value) insted
+// I was not aware of this when  this fucntion was written
 template<typename T>
 bool contain(ROOT::RVec<T> const& sequence, T const& value) {
     for (auto i: sequence) {
@@ -90,6 +95,9 @@ int calcVolid(int x, int y, int z) {
 }
 
 
+// Compute the energy center of mass from given volid and energy RVec
+// Make shure that the 2 RVec have the same lenght
+// ::return int:: the volid of the center of mass 
 int centerOfMass(ROOT::RVec<int> const& volid, ROOT::RVec<double> const& edep_pvt) {
     if (volid.size() == 0) {return -1;}
     ROOT::RVec<int> X = ROOT::VecOps::Map(volid, getCubeX);
@@ -106,6 +114,7 @@ double weightedMean(ROOT::RVec<int> const& value, ROOT::RVec<double> const& weig
     double iW = 1 /  ROOT::VecOps::Sum(weight);
     return ROOT::VecOps::Sum(value * weight) * iW;
 }
+
 
 ROOT::RVec<bool> approxEq(ROOT::RVec<double> v, double value, double eps) {
     return ROOT::VecOps::abs(v - value) < eps;
