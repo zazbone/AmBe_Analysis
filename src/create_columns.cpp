@@ -4,7 +4,7 @@
 // Create a new root file with all neccessary practical column for the analysis
 // [G4path (char*)]:: the path to a source G4 ambe callibration 
 // [outputfile (char*)]:: the name and path of the output file
-void EQuenched(const char* G4Path, const char* outputFile) {
+void EQuenched(char const* G4Path, char const* outputFile) {
     using VecD = ROOT::RVec<double> const&;
     using VecI = ROOT::RVec<int> const&;
     using VecUI = ROOT::RVec<unsigned int> const&;
@@ -20,82 +20,114 @@ void EQuenched(const char* G4Path, const char* outputFile) {
     
     df = filterT1Events(df, 1e-5);
     df = df.Define(
-        "chainMaskT9",
+        MASK_T9,
         [](VecI pid, VecI tip, VecI pdg, VecUI CPID, VecD Ekin){
-            return decayChainMask(pid, tip, pdg, CPID, Ekin);
+            return createT9Mask(pid, tip, pdg, CPID, Ekin);
         },
-        {"T9.parentid", "T9.trackid", "T9.pdg", "T9.CreatorProcessID", "T9.initialEkin"}
+        {T9_PARENT_ID, T9_TRACK_ID, T9_PDG, T9_CREATOR_PROCESS_ID, T9_INITIAL_EKIN}
     );
     df = createT5Mask(df);
     df = df.Redefine(
-        "chainMaskT5",
+        MASK_T5,
         [](VecI cmask, VecI pdg){
             return ROOT::VecOps::Where(cmask==maskNOISE && (pdg == 1000020040 || pdg == 1000010030), ROOT::RVec(cmask.size(), -1), cmask);
         },
-        {"chainMaskT5", "pdg"}
+        {MASK_T5, T5_PDG}
     );
 
 
-    df = df.Define("volidAll",
+    df = df.Define(VOLID_ALL,
         [](VecI volid, VecD Epvt, VecI chainMask){
             // chain mask that sghould be discard any time are labeled with -1
             ROOT::RVec<bool> mask = chainMask != -1;
             return volidEpvtTot(volid[mask], Epvt[mask]);
         },
-        {"volid", "E_quenched", "chainMaskT5"}
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
     );
-    df = df.Define("EpvtAll", [](VectID volid){return std::get<1>(volid);}, {"volidAll"});
-    df = df.Redefine("volidAll", [](VectID volid){return std::get<0>(volid);}, {"volidAll"});
-    df = df.Define("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {"EpvtAll"});
-    df = df.Define("EpvtRankedCube", [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", "EpvtAll"});
-    df = df.Define("volidRankedCube", [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", "volidAll"});
+    df = df.Define(E_QUENCHED_ALL, [](VectID volid){return std::get<1>(volid);}, {VOLID_ALL});
+    df = df.Redefine(VOLID_ALL, [](VectID volid){return std::get<0>(volid);}, {VOLID_ALL});
+    df = df.Define("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_ALL});
+    df = df.Redefine(E_QUENCHED_ALL, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_ALL});
+    df = df.Redefine(VOLID_ALL, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_ALL});
 
-    df = df.Define("volidCE",
-        [](VecI volid, VecD Epvt, VecI chainMask){
-            ROOT::RVec<bool> mask = chainMask == maskCE_ELECT || chainMask == maskCE_CHILD;
-            return volidEpvtTot(volid[mask], Epvt[mask]);
-        },
-        {"volid", "E_quenched", "chainMaskT5"}
-    );
-    df = df.Define("EpvtCE", [](VectID volid){return std::get<1>(volid);}, {"volidCE"});
-    df = df.Redefine("volidCE", [](VectID volid){return std::get<0>(volid);}, {"volidCE"});
-    df = df.Define("totalEnergyCE", [](VecD Epvt){
-        return ROOT::VecOps::Sum(Epvt[Epvt > 0.1]);
-    }, {"EpvtCE"});
-    df = df.Define("_indexMECE", [](VecD Epvt){return indexMax(Epvt);}, {"EpvtCE"});
-    df = df.Define("EpvtMECE", [](int i, VecD Epvt){return i == -1? 0.0: Epvt[i];}, {"_indexMECE", "EpvtCE"});
-    df = df.Define("volidMECE", [](int i, VecI volid){return i == -1? -1: volid.at(i);}, {"_indexMECE", "volidCE"});
-
-    df = df.Define("volidGamma",
-        [](VecI volid, VecD Epvt, VecI chainMask){
-            ROOT::RVec<bool> mask = chainMask == maskGAMMA || chainMask == maskG_CHILD;
-            return volidEpvtTot(volid[mask], Epvt[mask]);
-        },
-        {"volid", "E_quenched", "chainMaskT5"}
-    );
-    df = df.Define("EpvtGamma", [](VectID volid){return std::get<1>(volid);}, {"volidGamma"});
-    df = df.Redefine("volidGamma", [](VectID volid){return std::get<0>(volid);}, {"volidGamma"});
-
-    df = df.Define("volidNeutron",
+    df = df.Define(VOLID_NOISE,
         [](VecI volid, VecD Epvt, VecI chainMask){
             ROOT::RVec<bool> mask = chainMask == maskNOISE;
             return volidEpvtTot(volid[mask], Epvt[mask]);
         },
-        {"volid", "E_quenched", "chainMaskT5"}
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
     );
-    df = df.Define("EpvtNeutron", [](VectID volid){return std::get<1>(volid);}, {"volidNeutron"});
-    df = df.Redefine("volidNeutron", [](VectID volid){return std::get<0>(volid);}, {"volidNeutron"});
+    df = df.Define(E_QUENCHED_NOISE, [](VectID volid){return std::get<1>(volid);}, {VOLID_NOISE});
+    df = df.Redefine(VOLID_NOISE, [](VectID volid){return std::get<0>(volid);}, {VOLID_NOISE});
+    df = df.Redefine("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_NOISE});
+    df = df.Redefine(E_QUENCHED_NOISE, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_NOISE});
+    df = df.Redefine(VOLID_NOISE, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_NOISE});
 
-    df = df.Define("CEReachPvt",
-        [](bool T1, VecI mask){return T1 && ROOT::VecOps::Any(mask == maskGAMMA || mask == maskG_CHILD) && ROOT::VecOps::Any(mask == maskCE_ELECT || mask == maskCE_CHILD);},
-        {"is_event", "chainMaskT5"}
+    df = df.Define(VOLID_GAMMA,
+        [](VecI volid, VecD Epvt, VecI chainMask){
+            ROOT::RVec<bool> mask = chainMask == maskGAMMA || chainMask == maskG_CHILD;
+            return volidEpvtTot(volid[mask], Epvt[mask]);
+        },
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
     );
+    df = df.Define(E_QUENCHED_GAMMA, [](VectID volid){return std::get<1>(volid);}, {VOLID_GAMMA});
+    df = df.Redefine(VOLID_GAMMA, [](VectID volid){return std::get<0>(volid);}, {VOLID_GAMMA});
+    df = df.Redefine("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_GAMMA});
+    df = df.Redefine(E_QUENCHED_GAMMA, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_GAMMA});
+    df = df.Redefine(VOLID_GAMMA, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_GAMMA});
     
+    df = df.Define(VOLID_CE,
+        [](VecI volid, VecD Epvt, VecI chainMask){
+            ROOT::RVec<bool> mask = chainMask == maskCE_ELECT || chainMask == maskCE_CHILD;
+            return volidEpvtTot(volid[mask], Epvt[mask]);
+        },
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
+    );
+    df = df.Define(E_QUENCHED_CE, [](VectID volid){return std::get<1>(volid);}, {VOLID_CE});
+    df = df.Redefine(VOLID_CE, [](VectID volid){return std::get<0>(volid);}, {VOLID_CE});
+    df = df.Redefine("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_CE});
+    df = df.Redefine(E_QUENCHED_CE, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_CE});
+    df = df.Redefine(VOLID_CE, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_CE});
+    
+    df = df.Define(VOLID_NOISE_GAMMA,
+        [](VecI volid, VecD Epvt, VecI chainMask){
+            ROOT::RVec<bool> mask = chainMask == maskNOISE_GAMMA || chainMask == maskNOISE_GCHILD;
+            return volidEpvtTot(volid[mask], Epvt[mask]);
+        },
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
+    );
+    df = df.Define(E_QUENCHED_NOISE_GAMMA, [](VectID volid){return std::get<1>(volid);}, {VOLID_NOISE_GAMMA});
+    df = df.Redefine(VOLID_NOISE_GAMMA, [](VectID volid){return std::get<0>(volid);}, {VOLID_NOISE_GAMMA});
+    df = df.Redefine("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_NOISE_GAMMA});
+    df = df.Redefine(E_QUENCHED_NOISE_GAMMA, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_NOISE_GAMMA});
+    df = df.Redefine(VOLID_NOISE_GAMMA, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_NOISE_GAMMA});
+
+    df = df.Define(VOLID_NOISE_CE,
+        [](VecI volid, VecD Epvt, VecI chainMask){
+            ROOT::RVec<bool> mask = chainMask == maskNOISE_CE || chainMask == maskNOISE_CE_CHILD;
+            return volidEpvtTot(volid[mask], Epvt[mask]);
+        },
+        {T5_VOLID, T5_E_QUENCHED, MASK_T5}
+    );
+    df = df.Define(E_QUENCHED_NOISE_CE, [](VectID volid){return std::get<1>(volid);}, {VOLID_NOISE_CE});
+    df = df.Redefine(VOLID_NOISE_CE, [](VectID volid){return std::get<0>(volid);}, {VOLID_NOISE_CE});
+    df = df.Redefine("_indexRankedCube", [](VecD Epvt){return ROOT::VecOps::Argsort(Epvt, [](double x, double y) {return x > y;});}, {E_QUENCHED_NOISE_CE});
+    df = df.Redefine(E_QUENCHED_NOISE_CE, [](VecUL index, VecD Epvt){return ROOT::VecOps::Take(Epvt, index);}, {"_indexRankedCube", E_QUENCHED_NOISE_CE});
+    df = df.Redefine(VOLID_NOISE_CE, [](VecUL index, VecI volid){return ROOT::VecOps::Take(volid, index);}, {"_indexRankedCube", VOLID_NOISE_CE});
+
+    df = df.Define(TOTAL_ALL, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_ALL});
+    df = df.Define(TOTAL_NOISE, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_NOISE});
+    df = df.Define(TOTAL_GAMMA, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_GAMMA});
+    df = df.Define(TOTAL_CE, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_CE});
+    df = df.Define(TOTAL_NOISE_GAMMA, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_NOISE_GAMMA});
+    df = df.Define(TOTAL_NOISE_CE, [](VecD Epvt){return ROOT::VecOps::Sum(Epvt[Epvt > ETOL]);}, {E_QUENCHED_NOISE_CE});
+
+
     df.Snapshot("A", outputFile, {
-        "is_event", "chainMaskT9", "chainMaskT5", "CEReachPvt",
-        "EpvtAll", "volidAll", "EpvtCE", "volidCE", "EpvtGamma", "volidGamma", "EpvtNeutron", "volidNeutron",
-        "totalEnergyCE", "EpvtMECE", "volidMECE",
-        "volidRankedCube", "EpvtRankedCube"
+        MASK_T9, MASK_T5,
+        VOLID_ALL, VOLID_NOISE, VOLID_GAMMA, VOLID_CE, VOLID_NOISE_GAMMA, VOLID_NOISE_CE,
+        E_QUENCHED_ALL, E_QUENCHED_NOISE, E_QUENCHED_GAMMA, E_QUENCHED_CE, E_QUENCHED_NOISE_GAMMA, E_QUENCHED_NOISE_CE,
+        TOTAL_ALL, TOTAL_NOISE, TOTAL_GAMMA, TOTAL_CE, TOTAL_NOISE_GAMMA, TOTAL_NOISE_CE
     });
-    // G4File->Close(); // why closing the file cause a segfault ???
+    // unique_ptr call destructor here => dont need to Close the TFile
 }

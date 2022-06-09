@@ -1,8 +1,103 @@
 #include "../include/constants.hpp"
 #include "../include/track_chain.hpp"
+#include "../include/util.hpp"
 
 
 // Sourcefile contaning the algorithm that apply the filter mask to T9 and T5
+
+
+ROOT::RVec<int> createT9Mask(
+    ROOT::RVec<int> const& parentid,
+    ROOT::RVec<int> const& trackid,
+    ROOT::RVec<int> const& pdg,
+    ROOT::RVec<int> const& processId,
+    ROOT::RVec<double> const& Ekin
+) {
+    const int N = parentid.size();
+    ROOT::RVec<int> mask (N, maskNOISE);
+    int initGammaIndex = -1;
+    int initNeutronIndex = -1;
+    for (int i = 0; i < N; i++) {
+        if (parentid[i] == 0) {
+            if (pdg[i] == GAMMA_PDG) {
+                initGammaIndex = i;
+                mask[i] = maskGAMMA;
+                applyToChain(parentid, trackid, mask, trackid[i], maskG_CHILD);
+            } else {
+                initNeutronIndex = i;
+            }
+            if (
+                initGammaIndex != -1 &&
+                initNeutronIndex != -1
+            ) { break; }
+        }
+    }
+
+    for (int i = 0; i < N ; i++) {
+        if (pdg[i] == GAMMA_PDG && parentid[i] == trackid[initNeutronIndex] && (std::abs(Ekin[i] - 4.438) < 1e-2)) {
+            mask[i] = maskNOISE_GAMMA;
+            applyToChain(parentid, trackid, mask, trackid[i], maskNOISE_GCHILD);
+            break;
+        }
+    }
+
+    int gammaCEIndex = -1;
+    int neutronCEIndex = -1;
+    double gammaCEMEkin = 0;
+    double neutronCEMEkin = 0;
+    for (int i = 0; i < N; i++) {
+        if (pdg[i] == ELECTRON_PDG && processId[i] == CE_PROCESS_ID) {
+            if (mask[i] == maskG_CHILD && (gammaCEIndex == -1 || gammaCEMEkin < Ekin[i])) {
+                gammaCEIndex = i;
+                gammaCEMEkin = Ekin[i];
+            } else if (mask[i] == maskNOISE_GCHILD && (neutronCEIndex == -1 || neutronCEMEkin < Ekin[i])) {
+                neutronCEIndex = i;
+                neutronCEMEkin = Ekin[i];
+            }
+        }
+    }
+    
+    if (gammaCEIndex != -1) {
+        mask[gammaCEIndex] = maskCE_ELECT;
+        applyToChain(parentid, trackid, mask, trackid[gammaCEIndex], maskCE_CHILD);
+    }
+    if (neutronCEIndex != -1) {
+        mask[neutronCEIndex] = maskNOISE_CE;
+        applyToChain(parentid, trackid, mask, trackid[neutronCEIndex], maskNOISE_CE_CHILD);
+    }
+
+    // Add alpha and tritium particles to discarded events.
+    mask[pdg == 1000020040 || pdg == 1000010030] == -1;
+    return mask;
+}
+
+
+// The recursive function that will recursively traverse the chain of particles created
+// and progressivelly fill the mask vector
+// Should not be use direcly, this function is used by `createT9Mask` that you should call insted
+void applyToChain(
+    ROOT::RVec<int> const& parentid,
+    ROOT::RVec<int> const& trackid,
+    ROOT::RVec<int> & mask,
+    int curentParentId,
+    int maskToApply
+) {
+    int N = parentid.size();
+    for (int i = 0; i < N; i++) {
+        if (parentid[i] == curentParentId) {
+            mask[i] = maskToApply;
+            applyToChain(parentid, trackid, mask, trackid[i], maskToApply);
+        }
+    }
+}
+
+
+
+////                                                                                 ////
+// Following function are now unused, they correspond to the algorithm's first version //
+////                                                                                 ////
+
+
 
 
 // The recursive function that will recursively traverse the chain of particles created
@@ -17,16 +112,17 @@ void maskWalker(
     bool isCEChain
 ) {
     for (int i = 0; i < N; i++) {
-        if (parentid.at(i) == curentParentId) {
+        if (parentid[i] == curentParentId) {
             if (isCEChain) {
-                mask.at(i) = maskCE_CHILD;
+                mask[i]= maskCE_CHILD;
             } else {
-                mask.at(i) = maskG_CHILD;
+                mask[i] = maskG_CHILD;
             }
-            maskWalker(parentid, trackid, mask, trackid.at(i), N, isCEChain);
+            maskWalker(parentid, trackid, mask, trackid[i], N, isCEChain);
         }
     }
 }
+
 
 
 // Function to apply to T9 that return a mask array alligned with the other T9 particles.
@@ -54,9 +150,9 @@ ROOT::RVec<int> decayChainMask(
 
     int gammaId = -1;
     for (int i=0; i < N; i++){
-        if (pdg.at(i)==GAMMA_PDG && std::abs(Ekin.at(i) - GAMMA_ENERGY) < 10e-6) {
+        if (pdg[i]==GAMMA_PDG && std::abs(Ekin[i] - GAMMA_ENERGY) < 10e-6) {
             mask[i] = maskGAMMA;
-            gammaId = trackid.at(i);
+            gammaId = trackid[i];
             break;
         }
     }
@@ -69,11 +165,11 @@ ROOT::RVec<int> decayChainMask(
     double CEEkin = 0.;
     ROOT::RVec<int> childIndex {};
     for (int i=0; i < N; i++) {
-        if (pdg.at(i) == ELECTRON_PDG && parentid.at(i) == gammaId) {
+        if (pdg[i] == ELECTRON_PDG && parentid[i] == gammaId) {
             childIndex.push_back(i);
             mask[i]=maskG_CHILD;
-            if (CEEkin < Ekin.at(i) && processId.at(i) == CE_PROCESS_ID) {  // Higher energy electron found
-                CEEkin = Ekin.at(i);
+            if (CEEkin < Ekin[i] && processId[i] == CE_PROCESS_ID) {  // Higher energy electron found
+                CEEkin = Ekin[i];
                 if (-1 != CEIndex) {mask[CEIndex] = maskG_CHILD;}
                 CEIndex = i;
                 mask[CEIndex] = maskCE_ELECT;
@@ -88,19 +184,13 @@ ROOT::RVec<int> decayChainMask(
     // Recursion into each gamma child
     for (int eIndex: childIndex) {
         if (eIndex == CEIndex) {
-            maskWalker(parentid, trackid, mask, trackid.at(eIndex), N, true);
+            maskWalker(parentid, trackid, mask, trackid[eIndex], N, true);
         } else {
-            maskWalker(parentid, trackid, mask, trackid.at(eIndex), N, false);
+            maskWalker(parentid, trackid, mask, trackid[eIndex], N, false);
         }
     }
     return mask;
 }
-
-
-////                                                                                 ////
-// Following function are now unused, they correspond to the algorithm's first version //
-////                                                                                 ////
-
 
 double track_entry(
     //T9
@@ -122,13 +212,13 @@ double track_entry(
     const std::vector<int> validId {1, 2, 3};
     for (int i = 0; i < N; i++) {
         if (
-            (std::abs(initialEkin.at(i) - GAMMA_ENERGY) < 0.001) &&  // Had a valid energy
-            (pdg.at(i) == 22) &&  // Ensure it's a photon
-            (parentid.at(i) == 0) &&  // Should not have parents
-            (std::find(validId.begin(), validId.end(), trackid.at(i)) != validId.end())
+            (std::abs(initialEkin[i] - GAMMA_ENERGY) < 0.001) &&  // Had a valid energy
+            (pdg[i] == 22) &&  // Ensure it's a photon
+            (parentid[i] == 0) &&  // Should not have parents
+            (std::find(validId.begin(), validId.end(), trackid[i]) != validId.end())
         ) {
             if (onlyFirstCompton) {
-                int indexCE = findPrimaryCE(pdg, parentid, initialEkin, trackid.at(i), N);
+                int indexCE = findPrimaryCE(pdg, parentid, initialEkin, trackid[i], N);
                 if (indexCE >= 0) {
                     // Bactracking starting at the compton edge electron
                     return walker(trackid, parentid, trackidT5, edep_pvt, indexCE, N);
@@ -156,12 +246,12 @@ double walker(
     int N
 ) {
     std::vector<int> childIndex (0);
-    int partId = trackid.at(partIndex);
+    int partId = trackid[partIndex];
 
     // For all particle look if parentId match the curent particle trackId
     // All trackId are unique, so this is the only check needed
     for (int i = 0; i < N; i++) {
-        if (parentid.at(i) == partId) {
+        if (parentid[i] == partId) {
             childIndex.push_back(i);
         }
     }
@@ -170,9 +260,9 @@ double walker(
     if (nbChild == 0) {
         // recursion get-away
         for (int i = 0; i < sizeT5; i++) {
-            if (trackidT5.at(i) == partId) {
+            if (trackidT5[i] == partId) {
                 // End of chain particle (No child and deposit is energy)
-                return edep_pvt.at(i);
+                return edep_pvt[i];
             }
         }
         // Losed particle (Mo child + no deposited energy in pvt)
@@ -183,9 +273,9 @@ double walker(
         //  -> Recursively continu the tracking for all child and sum the energies
         double etot {0.};
         for (int i = 0; i < sizeT5; i++) {
-            if (trackidT5.at(i) == partId) {
+            if (trackidT5[i] == partId) {
                 // The actual particle deposit energy in pvt
-                etot += edep_pvt.at(i);
+                etot += edep_pvt[i];
                 break;  // No way to find multiple time the same trackid
             }
         }
@@ -214,10 +304,10 @@ int findPrimaryCE(
     double energyCE {0.};
     for (int i = 0; i < N; i++) {
         // Looking for primary electron
-        if (parentid.at(i) == gammaId && pdg.at(i) == 11) {
+        if (parentid[i] == gammaId && pdg[i] == 11) {
             // Maximum energy check could be done in the first if but keep it clear
-            if (energyCE < initialEkin.at(i)) {
-                energyCE = initialEkin.at(i);
+            if (energyCE < initialEkin[i]) {
+                energyCE = initialEkin[i];
                 indexCE = i;
             }
         }
@@ -245,13 +335,13 @@ ROOT::RVec<int> cubeTrackEntry(
     const std::vector<int> validId {1, 2, 3};
     for (int i = 0; i < N; i++) {
         if (
-            (std::abs(initialEkin.at(i) - GAMMA_ENERGY) < 0.001) &&  // Had a valid energy
-            (pdg.at(i) == 22) &&  // Ensure it's a photon
-            (parentid.at(i) == 0) &&  // Should not have parents
-            (std::find(validId.begin(), validId.end(), trackid.at(i)) != validId.end())
+            (std::abs(initialEkin[i] - GAMMA_ENERGY) < 0.001) &&  // Had a valid energy
+            (pdg[i] == 22) &&  // Ensure it's a photon
+            (parentid[i] == 0) &&  // Should not have parents
+            (std::find(validId.begin(), validId.end(), trackid[i]) != validId.end())
         ) {
             if (onlyFirstCompton) {
-                int indexCE = findPrimaryCE(pdg, parentid, initialEkin, trackid.at(i), N);
+                int indexCE = findPrimaryCE(pdg, parentid, initialEkin, trackid[i], N);
                 if (indexCE >= 0) {
                     // Bactracking starting at the compton edge electron
                     return cubeWalker(trackid, parentid, trackidT5, volid, indexCE, N);
@@ -280,12 +370,12 @@ ROOT::RVec<int> cubeWalker(
     int N
 ) {
     std::vector<int> childIndex (0);
-    int partId = trackid.at(partIndex);
+    int partId = trackid[partIndex];
 
     // For all particle look if parentId match the curent particle trackId
     // All trackId are unique, so this is the only check needed
     for (int i = 0; i < N; i++) {
-        if (parentid.at(i) == partId) {
+        if (parentid[i] == partId) {
             childIndex.push_back(i);
         }
     }
@@ -294,9 +384,9 @@ ROOT::RVec<int> cubeWalker(
     if (nbChild == 0) {
         // recursion get-away
         for (int i = 0; i < sizeT5; i++) {
-            if (trackidT5.at(i) == partId) {
+            if (trackidT5[i] == partId) {
                 // End of chain particle (No child and deposit is energy)
-                return ROOT::RVec<int> {volid.at(i)};
+                return ROOT::RVec<int> {volid[i]};
             }
         }
         // Losed particle (Mo child + no deposited energy in pvt)
@@ -307,9 +397,9 @@ ROOT::RVec<int> cubeWalker(
         //  -> Recursively continu the tracking for all child and sum the energies
         ROOT::RVec<int> cubes {};
         for (int i = 0; i < sizeT5; i++) {
-            if (trackidT5.at(i) == partId) {
+            if (trackidT5[i] == partId) {
                 // The actual particle deposit energy in pvt
-                cubes.push_back(volid.at(i));
+                cubes.push_back(volid[i]);
                 break;  // No way to find multiple time the same trackid
             }
         }

@@ -38,7 +38,7 @@ ROOT::RVec<int> getIndex(ROOT::RVec<int> const& vec1, ROOT::RVec<int> const& vec
     std::set<int> memory {};
     for (int el: vec1) {
         for (unsigned long index = 0; index < vec2.size(); index++) {
-            if (el == vec2.at(index) && (memory.find(index) == memory.end())) {
+            if (el == vec2[index] && (memory.find(index) == memory.end())) {
                 out.push_back(index);
                 memory.emplace(index);
                 break;         

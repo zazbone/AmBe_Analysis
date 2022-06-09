@@ -34,7 +34,7 @@ ROOT::RVec<int> _fromMaskT9(
 ) {
     int N = trackidT5.size();
     ROOT::RVec<int> maskT5 (N, 0);
-    for (int i = 1; i < 5; i++) {
+    for (int i = -1; i < 9; i++) {
         ROOT::RVec<int> tid = trackidT9[maskT9==i];
         ROOT::RVec<bool> mask = in(tid, trackidT5);
         maskT5 = ROOT::VecOps::Where(mask, ROOT::RVec<int>(N, i), maskT5);
@@ -145,6 +145,6 @@ ROOT::RDF::RNode selectedCEEvents(ROOT::RDF::RNode & df) {
     out = out.Filter("(EpvtCE[EpvtCE > 0.1]).size() == 1", "1 Compton edge cube");
     out = out.Define("CECubeVolid", "volidCE[EpvtCE > 0.1][0]");
     out = out.Define("CECubeCEEpvt", "ROOT::VecOps::Sum(EpvtCE[EpvtCE > 0.1])");
-    out = out.Filter("auto mask = EpvtCE > 0.1; auto cubeVolid = volid == volidCE[mask].at(0) ; return EpvtCE[mask][0] / E_quenched[cubeVolid][0] > 0.95;", "Signal purity above 95%");
+    out = out.Filter("auto mask = EpvtCE > 0.1; auto cubeVolid = volid == volidCE[mask][0] ; return EpvtCE[mask][0] / E_quenched[cubeVolid][0] > 0.95;", "Signal purity above 95%");
     return out;
 }
