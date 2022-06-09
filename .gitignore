@@ -1,5 +1,6 @@
 .ipynb_checkpoints/
 .vscode
+.vs
 *.root
 trashbin/
 
@@ -15,3 +16,6 @@ Makefile
 CMakeFiles
 docs/*
 *.dot
+build/
+
+__pycache__/
