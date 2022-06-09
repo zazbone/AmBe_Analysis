@@ -4,18 +4,52 @@
 #include <ROOT/RDataFrame.hxx>
 
 
-const int maskInvalide = -1;  // Event that should always be discarded (ex: Tritium & Alpha with wrong deposited energy)
+// Event that should always be discarded (ex: Tritium & Alpha with wrong deposited energy)
+const int maskInvalid = -1; 
+// Initial neutron and Gamma identifier
 const int maskNOISE = 0;
 const int maskGAMMA = 1;
-const int maskCE_ELECT = 2;
+
+// Gamma child
 const int maskG_CHILD = 3;
+// Gamma compton edge electron and child
+const int maskCE_ELECT = 2;
 const int maskCE_CHILD = 4;
-// TODO: extend the algorithm for the compton edge of (12)C*
+// NB: `maskCE_ELECT` and `maskCE_CHILD` are also `maskG_CHILD` but specific ones
+
+// Identifier for 4.44 MeV gamma event and CE subprocess 
+// Create by ^{12}C^* relaxing, after a n + ^{12}C inelastic process
+// Relaxing 4.44 gamma
+const int maskNOISE_GAMMA = 7;
+// Is childs
+const int maskNOISE_GCHILD = 8;
+// Gamma compton edge electron and child
 const int maskNOISE_CE = 5;
 const int maskNOISE_CE_CHILD = 6;
+// NB: `maskNOISE_CE` and `maskNOISE_CE_CHILD` are also `maskNOISE_GCHILD` but specific ones
+
+
 
 
 // Sourcefile contaning the algorithm that apply the filter mask to T9 and T5
+
+
+ROOT::RVec<int> createT9Mask(
+    ROOT::RVec<int> const& parentid,
+    ROOT::RVec<int> const& trackid,
+    ROOT::RVec<int> const& pdg,
+    ROOT::RVec<int> const& processId,
+    ROOT::RVec<double> const& Ekin
+);
+
+
+void applyToChain(
+    ROOT::RVec<int> const& parentid,
+    ROOT::RVec<int> const& trackid,
+    ROOT::RVec<int> & mask,
+    int curentParentId,
+    int maskToApply
+);
 
 
 // The recursive function that will recursively traverse the chain of particles created
@@ -28,7 +62,7 @@ void maskWalker(
     int curentParentId,
     const int N,
     bool isCEChain
-);
+) ;
 
 
 // Function to apply to T9 that return a mask array alligned with the other T9 particles.
