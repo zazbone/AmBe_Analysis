@@ -1,0 +1,45 @@
+import ROOT 
+from sys import argv
+
+
+df = ROOT.RDataFrame("A", argv[1])
+nb_CE = df.Filter("totalEnergyCE > 0.1").Count().GetValue()
+nb_CE_noise = df.Filter("totalEnergyNoiseCE > 0.1").Count().GetValue()
+nb_all = df.Count().GetValue()
+print("With any energy")
+print("Compton edge ratio: ", f"{nb_CE}/{nb_all}=", nb_CE / nb_all)
+print("Noise Compton edge ratio:", f"{nb_CE_noise}/{nb_all}=", nb_CE_noise / nb_all)
+print("Total Compton edge ratio:", f"{nb_CE + nb_CE_noise}/{nb_all}=", (nb_CE + nb_CE_noise) / nb_all)
+
+nb_CE = df.Filter("totalEnergyCE > 3.7").Count().GetValue()
+nb_CE_noise = df.Filter("totalEnergyNoiseCE > 3.7").Count().GetValue()
+nb_all = df.Filter("E_quenchedAll[0] > 3.7").Count().GetValue()
+print("With energy > 3.7 MeV")
+print("Compton edge ratio: ", f"{nb_CE}/{nb_all}=", nb_CE / nb_all)
+print("Noise Compton edge ratio:", f"{nb_CE_noise}/{nb_all}=", nb_CE_noise / nb_all)
+print("Total Compton edge ratio:", f"{nb_CE + nb_CE_noise}/{nb_all}=", (nb_CE + nb_CE_noise) / nb_all)
+
+df = df.Filter("E_quenchedAll[0] > 3.7")
+df = df.Define("most_energ_cube", "volidAll[0]")
+df = df.Define("CE_ME_constribution", "ROOT::VecOps::Sum(E_quenchedCE[volidCE == most_energ_cube])")
+df = df.Define("NoiseCE_ME_constribution", "ROOT::VecOps::Sum(E_quenchedNoiseCE[volidNoiseCE == most_energ_cube])")
+df = df.Define("CE_purity", "CE_ME_constribution / E_quenchedAll[0]")
+df = df.Define("NoiseCE_purity", "NoiseCE_ME_constribution / E_quenchedAll[0]")
+df = df.Define("best_purity", "std::max(CE_purity, NoiseCE_purity)")
+
+CE_purity = df.Mean("CE_purity").GetValue()
+NoiseCE_purity = df.Mean("NoiseCE_purity").GetValue()
+best_purity = df.Mean("best_purity").GetValue()
+
+print("Compton edge purity: ", CE_purity)
+print("Noise Compton edge putirty: ", NoiseCE_purity)
+print("Best purity", best_purity)
+model = ROOT.RDF.TH1DModel("background", "background", 100, 0, 10)
+df = df.Define("background", "E_quenchedAll[0] - std::max(CE_ME_constribution, NoiseCE_ME_constribution)")
+df = df.Filter("background > 0.1")
+h = df.Histo1D(model, "background").DrawClone()
+input()
+model = ROOT.RDF.TH1DModel("background ratio", "background ratio", 100, 0, 1)
+df = df.Define("bckg_ratio", "background / E_quenchedAll[0]")
+h = df.Histo1D(model, "bckg_ratio").DrawClone()
+input()
